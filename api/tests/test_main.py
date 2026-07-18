@@ -39,6 +39,30 @@ def test_uploaded_photo_replays_offline_demo_without_provider_keys() -> None:
     assert '"mode": "offline"' in response.text
 
 
+def test_outfit_rejects_unsupported_upload_type() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/outfit",
+        data={"budget": "75"},
+        files={"photo": ("outfit.gif", b"synthetic-image", "image/gif")},
+    )
+
+    assert response.status_code == 415
+
+
+def test_outfit_rejects_empty_upload() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/outfit",
+        data={"budget": "75"},
+        files={"photo": ("outfit.jpg", b"", "image/jpeg")},
+    )
+
+    assert response.status_code == 400
+
+
 def test_research_exclusion_changes_the_offline_result() -> None:
     client = TestClient(app)
 

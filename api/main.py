@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -15,8 +15,10 @@ from api.config import get_settings
 from api.demo import demo_outfit
 from api.location import LocationLookupError, us_zip_from_coordinates
 from api.pipeline.run import live_progress
+from api.security import ALLOWED_IMAGE_TYPES, SlidingWindowLimiter, client_ip
 
 logger = logging.getLogger(__name__)
+live_request_limiter = SlidingWindowLimiter()
 
 app = FastAPI(title="ThriftTheLook API", version="0.1.0")
 app.add_middleware(
@@ -122,6 +124,7 @@ async def outfit_events(
 
 @app.post("/api/outfit")
 async def create_outfit(
+    request: Request,
     photo: Annotated[UploadFile, File()],
     budget: Annotated[Decimal, Form(ge=20, le=500)] = Decimal("75"),
     exclude_ids: Annotated[str, Form()] = "",
@@ -132,9 +135,26 @@ async def create_outfit(
 ) -> StreamingResponse:
     """Accept an outfit photo and stream either the judge-safe or live pipeline."""
 
-    image_bytes = await photo.read()
-    mime_type = photo.content_type or "image/jpeg"
     settings = get_settings()
+    mime_type = photo.content_type or ""
+    if mime_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail="Upload a JPG, PNG, or WebP outfit image.",
+        )
+    image_bytes = await photo.read(settings.max_upload_bytes + 1)
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Upload a non-empty outfit image.")
+    if len(image_bytes) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="Image must be 8 MB or smaller.")
+    if settings.demo_mode == "live" and not live_request_limiter.allow(
+        client_ip(request),
+        settings.live_requests_per_minute,
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many live look requests. Please try again in a minute.",
+        )
     excluded_listing_ids = parse_excluded_ids(exclude_ids)
     selected_zip = " ".join(delivery_zip.split())
     if settings.demo_mode == "offline":

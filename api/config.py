@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     ebay_marketplace: str = "EBAY_US"
     ebay_delivery_zip: str | None = None
     use_gpt_boxes: bool = False
+    max_upload_bytes: int = 8 * 1024 * 1024
+    live_requests_per_minute: int = 10
 
 
 @lru_cache

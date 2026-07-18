@@ -67,7 +67,9 @@ type SearchRun = {
   failure?: string;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const apiUrl =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:8000");
 const sizeOptions = ["No preference", "XXS", "XS", "S", "M", "L", "XL", "2XL", "3XL"];
 const progressSteps = ["Read the look", "Isolate pieces", "Search eBay", "Fit the budget", "Style the receipt"];
 

@@ -2,18 +2,13 @@
 
 import base64
 import logging
-from typing import Any, Final, cast
+from typing import Any, cast
 
 from openai import APIError, AsyncOpenAI
 from openai.types.responses import ResponseInputParam
 from pydantic import BaseModel, Field
 
 from api.config import Settings, get_settings
-
-SOL_MODEL: Final = "gpt-5.6-sol"
-LUNA_MODEL: Final = "gpt-5.6-luna"
-GEMINI_MODEL: Final = "gemini-3.1-flash-lite"
-GEMINI_BASE_URL: Final = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +89,7 @@ def _gemini_client(settings: Settings) -> AsyncOpenAI:
         )
     return AsyncOpenAI(
         api_key=settings.gemini_api_key,
-        base_url=GEMINI_BASE_URL,
+        base_url=settings.gemini_base_url,
     )
 
 
@@ -117,7 +112,7 @@ async def _gemini_parse[ParsedModel: BaseModel](
     """Use Gemini's OpenAI-compatible Chat Completions structured parsing."""
 
     completion = await _gemini_client(settings).beta.chat.completions.parse(
-        model=GEMINI_MODEL,
+        model=settings.gemini_model,
         messages=cast(Any, messages),
         response_format=schema,
     )
@@ -154,7 +149,7 @@ async def decompose_outfit(
     encoded_image = base64.b64encode(image_bytes).decode("ascii")
     try:
         response = await _client(active_settings).responses.parse(
-            model=SOL_MODEL,
+            model=active_settings.openai_sol_model,
             reasoning={"effort": "low"},
             text_format=OutfitDecomposition,
             input=cast(
@@ -209,7 +204,7 @@ async def narrate_look(
     )
     try:
         response = await _client(active_settings).responses.parse(
-            model=LUNA_MODEL,
+            model=active_settings.openai_luna_model,
             text_format=StylistNarration,
             input=prompt,
         )
@@ -269,7 +264,7 @@ async def rerank_slot(
     active_settings = settings or get_settings()
     try:
         response = await _client(active_settings).responses.parse(
-            model=SOL_MODEL,
+            model=active_settings.openai_sol_model,
             reasoning={"effort": "low"},
             text_format=RerankResult,
             input=cast(ResponseInputParam, [{"role": "user", "content": content}]),

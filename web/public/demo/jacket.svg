@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Synthetic indigo chore jacket illustration">
+  <rect width="320" height="240" fill="#BFD9E4"/>
+  <path d="M84 220V103l47-42h58l47 42v117h-45v-72h-62v72z" fill="#557692" stroke="#3B2E2A" stroke-width="6" stroke-linejoin="round"/>
+  <path d="m131 61 29 45 29-45M160 106v114M103 119h42v37h-42m72-37h42v37h-42" fill="none" stroke="#FDF6EE" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="160" cy="124" r="4" fill="#FDF6EE"/><circle cx="160" cy="157" r="4" fill="#FDF6EE"/><circle cx="160" cy="190" r="4" fill="#FDF6EE"/>
+  <path d="M84 103 43 147m193-44 41 44" stroke="#3B2E2A" stroke-width="6" stroke-linecap="round"/>
+</svg>

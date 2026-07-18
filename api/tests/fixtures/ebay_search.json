@@ -1,0 +1,22 @@
+{
+  "itemSummaries": [
+    {
+      "itemId": "v1|123|0",
+      "title": "Vintage brown leather jacket",
+      "price": {"value": "42.50", "currency": "USD"},
+      "shippingOptions": [{"shippingCost": {"value": "7.99", "currency": "USD"}}],
+      "image": {"imageUrl": "https://i.ebayimg.com/example.jpg"},
+      "itemWebUrl": "https://www.ebay.com/itm/123",
+      "condition": "Pre-owned"
+    },
+    {
+      "itemId": "v1|124|0",
+      "title": "Shipping not supplied",
+      "price": {"value": "19.00", "currency": "USD"},
+      "image": {"imageUrl": "https://i.ebayimg.com/no-shipping.jpg"},
+      "itemWebUrl": "https://www.ebay.com/itm/124",
+      "condition": "Used"
+    },
+    {"itemId": "bad", "title": "Missing price"}
+  ]
+}

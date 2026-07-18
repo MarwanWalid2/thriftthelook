@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #ffffff;
+  --ink: #051230;
+  --cocoa: #34454c;
+  --rose: #d46d7a;
+  --rosedeep: #051230;
+  --blush: #d46d7a;
+  --sage: #96d1aa;
+  --butter: #f3a257;
+  --sky: #97acc8;
+  --kraft: #b6bfc1;
+  --shadow-warm: 0 16px 34px rgba(5, 18, 48, 0.17);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(rgba(182, 191, 193, 0.32) 0.6px, transparent 0.6px),
+    linear-gradient(115deg, rgba(151, 172, 200, 0.08), transparent 38%);
+  background-size: 7px 7px, 100% 100%;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--rosedeep);
+  outline-offset: 3px;
+}
+
+::selection {
+  color: white;
+  background: var(--rosedeep);
+}
+
+.corkboard {
+  background-color: #71502f;
+  background-image:
+    radial-gradient(rgba(5, 18, 48, 0.2) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.13), transparent 44%);
+  background-size: 7px 7px, 100% 100%;
+}
+
+.paper-lift {
+  box-shadow: var(--shadow-warm);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.sticker {
+  box-shadow: 0 4px 0 rgba(90, 61, 49, 0.11), 0 8px 16px rgba(90, 61, 49, 0.1);
+  transform: rotate(-2deg);
+}
+
+.sticker:nth-child(even) {
+  transform: rotate(2deg);
+}
+
+.washi-tape {
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+}
+
+.drop-note::before {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--rose);
+  box-shadow: 1px 2px 0 rgba(59, 46, 42, 0.32);
+  content: "";
+}
+
+.polaroid-card {
+  box-shadow: 0 10px 18px rgba(90, 61, 49, 0.15);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.polaroid-card:nth-child(3n + 1) {
+  transform: rotate(-1.2deg);
+}
+
+.polaroid-card:nth-child(3n + 2) {
+  transform: rotate(1.1deg);
+}
+
+.polaroid-card:nth-child(3n) {
+  transform: rotate(-0.4deg);
+}
+
+.receipt-paper {
+  background-image: linear-gradient(90deg, rgba(59, 46, 42, 0.06) 1px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+.receipt-line {
+  animation: receipt-print 380ms ease both;
+}
+
+.soft-pulse {
+  animation: soft-pulse 1.5s ease-in-out infinite;
+}
+
+.upload-icon {
+  animation: bob 2.8s ease-in-out infinite;
+}
+
+@media (hover: hover) {
+  .paper-lift:hover {
+    box-shadow: 0 22px 38px rgba(90, 61, 49, 0.2);
+    transform: translateY(-3px);
+  }
+
+  .polaroid-card:hover {
+    box-shadow: 0 20px 30px rgba(90, 61, 49, 0.21);
+    transform: translateY(-6px) rotate(0deg);
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes receipt-print {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

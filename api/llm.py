@@ -17,6 +17,16 @@ class LlmConfigurationError(RuntimeError):
     """Raised when a live model operation is requested without a key."""
 
 
+def _configured_model(value: str | None, environment_variable: str) -> str:
+    """Return a configured model identifier or explain the missing live setting."""
+
+    if not value:
+        raise LlmConfigurationError(
+            f"{environment_variable} is required for this live model role."
+        )
+    return value
+
+
 class GarmentSlot(BaseModel):
     """One visible garment described by GPT-5.6 Sol."""
 
@@ -112,7 +122,7 @@ async def _gemini_parse[ParsedModel: BaseModel](
     """Use Gemini's OpenAI-compatible Chat Completions structured parsing."""
 
     completion = await _gemini_client(settings).beta.chat.completions.parse(
-        model=settings.gemini_model,
+        model=_configured_model(settings.gemini_model, "GEMINI_MODEL"),
         messages=cast(Any, messages),
         response_format=schema,
     )
@@ -149,7 +159,10 @@ async def decompose_outfit(
     encoded_image = base64.b64encode(image_bytes).decode("ascii")
     try:
         response = await _client(active_settings).responses.parse(
-            model=active_settings.openai_sol_model,
+            model=_configured_model(
+                active_settings.openai_sol_model,
+                "OPENAI_SOL_MODEL",
+            ),
             reasoning={"effort": "low"},
             text_format=OutfitDecomposition,
             input=cast(
@@ -204,7 +217,10 @@ async def narrate_look(
     )
     try:
         response = await _client(active_settings).responses.parse(
-            model=active_settings.openai_luna_model,
+            model=_configured_model(
+                active_settings.openai_luna_model,
+                "OPENAI_LUNA_MODEL",
+            ),
             text_format=StylistNarration,
             input=prompt,
         )
@@ -264,7 +280,10 @@ async def rerank_slot(
     active_settings = settings or get_settings()
     try:
         response = await _client(active_settings).responses.parse(
-            model=active_settings.openai_sol_model,
+            model=_configured_model(
+                active_settings.openai_sol_model,
+                "OPENAI_SOL_MODEL",
+            ),
             reasoning={"effort": "low"},
             text_format=RerankResult,
             input=cast(ResponseInputParam, [{"role": "user", "content": content}]),

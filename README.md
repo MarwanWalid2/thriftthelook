@@ -2,11 +2,11 @@
 
 > **Screenshot the fit. Thrift the look.**
 
-Turn one outfit photo into a secondhand look assembled under a total delivered-price budget. GPT-5.6 understands the look and rejects visual near-misses; a deterministic solver shows exactly what it traded to stay within budget.
+Turn one outfit photo into a secondhand look assembled under a total delivered-price budget. A configured vision model understands the look and rejects visual near-misses; a deterministic solver shows exactly what it traded to stay within budget.
 
 ## Run the judge-safe offline demo
 
-Prerequisites: Python 3.12+, Node.js 20+, and pnpm. If pnpm is not already enabled, use `corepack pnpm` in place of `pnpm` below.
+Prerequisites: Python 3.12+, Node.js 22+, and pnpm. If pnpm is not already enabled, use `corepack pnpm` in place of `pnpm` below.
 
 1. Copy `.env.example` to `.env`; leave `DEMO_MODE=offline`.
 2. Run `uv sync` and `pnpm --dir web install --ignore-scripts`.
@@ -17,7 +17,7 @@ Open `http://localhost:3000`. The demo has no keys and makes no marketplace or m
 ## What it does
 
 1. Accepts an outfit image by file upload, drag/drop surface, or clipboard paste.
-2. In live mode, GPT-5.6 Sol decomposes the outfit into structured garment slots and searches official eBay Browse inventory by crop or keywords.
+2. In live mode, the configured vision model decomposes the outfit into structured garment slots and searches official eBay Browse inventory by crop or keywords.
 3. Reranks candidates per slot, rejects wrong garment types or dominant colors, and uses a deterministic solver to choose the best delivered-price combination under budget.
 4. Shows the choices, delivered-total calculation, agent receipt, alternatives, and an honest partial/over-budget state.
 
@@ -29,7 +29,7 @@ The offline demo replays the same sequence using a synthetic, licence-safe catal
 photo upload / clipboard
           |
           v
-GPT-5.6 Sol decomposition (strict Pydantic schema)
+configured model decomposition (strict Pydantic schema)
           |
           +--> YOLOv8 clothing crops (optional live extra)
           |          |
@@ -37,13 +37,13 @@ GPT-5.6 Sol decomposition (strict Pydantic schema)
           +--> eBay Browse image search + keyword fallback
                          |
                          v
-             GPT-5.6 Sol batched candidate rerank
+             configured model batched candidate rerank
                          |
                          v
              deterministic delivered-price solver
                          |
                          v
-              GPT-5.6 Luna receipt narration
+              configured model receipt narration
                          |
                          v
               FastAPI SSE -> Next.js outfit board
@@ -63,7 +63,7 @@ EBAY_MARKETPLACE=EBAY_US
 
 Run `uv sync --extra vision` to enable YOLOv8/Pillow clothing crops. Production eBay validation requires a permitted eBay Browse application. The client uses the official Browse API only; it does not scrape Depop, Vinted, Pinterest, TikTok, or any marketplace.
 
-To compare the detector against saved GPT-5.6 boxes, run:
+To compare the detector against saved model-produced boxes, run:
 
 ```text
 uv run --extra vision python scripts/crop_compare.py path/to/outfit.jpg path/to/decomposition.json --gpt-boxes
@@ -95,13 +95,15 @@ On this build, the API tests cover OAuth token reuse, eBay payload normalization
 
 The checked-in [CI workflow](.github/workflows/ci.yml) reruns this offline API suite plus the web lint/build on every push or pull request.
 
-## How it uses GPT-5.6
+## Configurable model roles
 
-Every model call lives in [api/llm.py](api/llm.py):
+Every model call lives in [api/llm.py](api/llm.py). The provider and model IDs are set only through environment configuration; the source code contains no runtime model default.
 
-- [`gpt-5.6-sol` decomposition](api/llm.py#L85-L121) turns one outfit image into strict garment slots, including optional comparison boxes.
-- [`gpt-5.6-sol` batched rerank](api/llm.py#L148-L198) scores all candidate thumbnails for one slot and returns a strict score/reason/reject payload.
-- [`gpt-5.6-luna` narration](api/llm.py#L126-L143) writes the receipt after—not instead of—the deterministic budget decision.
+- [Decomposition](api/llm.py) turns one outfit image into strict garment slots, including optional comparison boxes.
+- [Batched rerank](api/llm.py) scores all candidate thumbnails for one slot and returns a strict score/reason/reject payload.
+- [Narration](api/llm.py) writes the receipt after—not instead of—the deterministic budget decision.
+
+Set `OPENAI_SOL_MODEL`, `OPENAI_LUNA_MODEL`, or `GEMINI_MODEL` in `.env` for the provider you choose. The checked-in [.env.example](.env.example) documents the contest configuration without making it an application dependency.
 
 The solver in [api/pipeline/assemble.py](api/pipeline/assemble.py) never calls a model. It optimizes known delivered totals, excludes listings with unknown shipping, and returns a complete, partial, or over-budget state truthfully.
 
@@ -113,7 +115,7 @@ This project was built in a Codex workspace with a durable `agents.md` product c
 2. Codex split the implementation into web, eBay-client, solver, and offline-demo tracks, then integrated and verified them.
 3. Codex built the eBay OAuth/search normalization client and its recorded-payload tests.
 4. Codex built the FastAPI SSE demo path, deterministic delivered-price solver, and corkboard UI together.
-5. Codex installed the official OpenAI documentation MCP connector and checked the locally installed Responses SDK signature before adding the structured GPT-5.6 helpers.
+5. Codex checked the locally installed Responses SDK signature before adding structured, provider-configurable model helpers.
 
 Before submission, replace this line with the `/feedback` session ID for the core build thread: **pending final Build Week feedback capture**.
 
@@ -122,7 +124,7 @@ Before submission, replace this line with the `/feedback` session ID for the cor
 1. **0:00–0:25 — problem:** paste an outfit photo and explain that assembling a whole secondhand look across marketplaces makes a single delivered-price budget hard to reason about.
 2. **0:25–1:35 — product:** show the streamed stages, lower the budget dial, then reject one card to show a fresh slot re-search and the updated total. Use a recorded live run for this section; the offline run is the reliable fallback.
 3. **1:35–2:05 — Codex:** show this repository’s `agents.md`, the commit/thread history, and the eBay/SSE test suite as concrete Codex-built moments.
-4. **2:05–2:35 — GPT-5.6:** show the linked Sol decomposition/rerank calls and Luna narration call above, then point out that the final budget choice is deterministic Python.
+4. **2:05–2:35 — model roles:** show the linked decomposition, rerank, and narration calls above, their environment configuration, and the deterministic Python budget choice.
 
 Before recording, rehearse with `scripts/record_run.py` using several licensed outfit photos and keep the clearest, fastest three runs. Do not present synthetic offline inventory as live eBay content.
 
@@ -139,7 +141,7 @@ Visual resale discovery already exists. Beni advertises screenshot/photo secondh
 ## Roadmap
 
 - eBay production validation, an explicit delivery-ZIP field, and size-aware Browse filters.
-- Measure crop quality across YOLO and GPT-box paths on a licensed test set.
+- Measure crop quality across YOLO and model-box paths on a licensed test set.
 - Partner APIs for additional marketplaces only where official access permits them; Depop and Vinted remain disabled “coming soon” UI chips until then.
 - Preference learning only after the core purchase-ready outfit loop proves reliable.
 

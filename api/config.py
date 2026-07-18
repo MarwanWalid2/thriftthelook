@@ -13,10 +13,10 @@ class Settings(BaseSettings):
 
     demo_mode: Literal["offline", "live"] = "offline"
     openai_api_key: str | None = None
-    openai_sol_model: str = "gpt-5.6-sol"
-    openai_luna_model: str = "gpt-5.6-luna"
+    openai_sol_model: str | None = None
+    openai_luna_model: str | None = None
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.1-flash-lite"
+    gemini_model: str | None = None
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     ebay_client_id: str | None = None
     ebay_client_secret: str | None = None

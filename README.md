@@ -107,27 +107,6 @@ Set `OPENAI_SOL_MODEL`, `OPENAI_LUNA_MODEL`, or `GEMINI_MODEL` in `.env` for the
 
 The solver in [api/pipeline/assemble.py](api/pipeline/assemble.py) never calls a model. It optimizes known delivered totals, excludes listings with unknown shipping, and returns a complete, partial, or over-budget state truthfully.
 
-## How I built it with Codex
-
-This project was built in a Codex workspace with a durable `agents.md` product contract. Key logged moments:
-
-1. Codex researched the official Build Week rules and revised unsafe competitor claims before implementation.
-2. Codex split the implementation into web, eBay-client, solver, and offline-demo tracks, then integrated and verified them.
-3. Codex built the eBay OAuth/search normalization client and its recorded-payload tests.
-4. Codex built the FastAPI SSE demo path, deterministic delivered-price solver, and corkboard UI together.
-5. Codex checked the locally installed Responses SDK signature before adding structured, provider-configurable model helpers.
-
-Before submission, replace this line with the `/feedback` session ID for the core build thread: **pending final Build Week feedback capture**.
-
-## Video walkthrough (under 3 minutes)
-
-1. **0:00–0:25 — problem:** paste an outfit photo and explain that assembling a whole secondhand look across marketplaces makes a single delivered-price budget hard to reason about.
-2. **0:25–1:35 — product:** show the streamed stages, lower the budget dial, then reject one card to show a fresh slot re-search and the updated total. Use a recorded live run for this section; the offline run is the reliable fallback.
-3. **1:35–2:05 — Codex:** show this repository’s `agents.md`, the commit/thread history, and the eBay/SSE test suite as concrete Codex-built moments.
-4. **2:05–2:35 — model roles:** show the linked decomposition, rerank, and narration calls above, their environment configuration, and the deterministic Python budget choice.
-
-Before recording, rehearse with `scripts/record_run.py` using several licensed outfit photos and keep the clearest, fastest three runs. Do not present synthetic offline inventory as live eBay content.
-
 ## Why this is different
 
 Visual resale discovery already exists. Beni advertises screenshot/photo secondhand search across marketplaces, and Phia focuses on finding lower prices while people shop. ThriftTheLook's demo focuses on the distinct decision: *which combination of visible pieces can I buy under one delivered-price budget?* [Beni](https://www.joinbeni.com/faq), [Phia](https://phia.nyc/)

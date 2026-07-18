@@ -1,27 +1,42 @@
-"""Small, privacy-conscious location-to-ZIP helper for delivery estimates."""
+"""Consent-based location lookup for the supported eBay delivery markets."""
 
 import asyncio
 import logging
-import re
 import time
 from typing import Any
 
 import httpx
+from pydantic import BaseModel, ConfigDict
+
+from api.marketplaces import Marketplace, marketplace_for_country
 
 logger = logging.getLogger(__name__)
 
 NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
-_ZIP_PATTERN = re.compile(r"\b(\d{5})(?:-\d{4})?\b")
 _last_request_at = 0.0
 _request_lock = asyncio.Lock()
 
 
 class LocationLookupError(RuntimeError):
-    """A ZIP code could not be safely resolved from approved coordinates."""
+    """A delivery market could not be safely resolved from approved coordinates."""
 
 
-async def us_zip_from_coordinates(latitude: float, longitude: float) -> str:
-    """Resolve a consented browser location to a US ZIP without retaining it."""
+class DetectedDeliveryLocation(BaseModel):
+    """A location result that is safe to return to the browser."""
+
+    model_config = ConfigDict(frozen=True)
+
+    marketplace: str
+    country: str
+    country_name: str
+    postal_code: str
+    currency: str
+
+
+async def delivery_location_from_coordinates(
+    latitude: float, longitude: float
+) -> DetectedDeliveryLocation:
+    """Resolve a consented browser location without retaining coordinates."""
 
     await _respect_public_geocoder_rate_limit()
     params = {
@@ -44,7 +59,7 @@ async def us_zip_from_coordinates(latitude: float, longitude: float) -> str:
         raise LocationLookupError(
             "Location lookup is temporarily unavailable."
         ) from error
-    return _zip_from_nominatim_payload(payload)
+    return _delivery_location_from_nominatim_payload(payload)
 
 
 async def _respect_public_geocoder_rate_limit() -> None:
@@ -58,18 +73,31 @@ async def _respect_public_geocoder_rate_limit() -> None:
         _last_request_at = time.monotonic()
 
 
-def _zip_from_nominatim_payload(payload: Any) -> str:
-    """Extract a five-digit ZIP only when the location is in the United States."""
+def _delivery_location_from_nominatim_payload(payload: Any) -> DetectedDeliveryLocation:
+    """Extract a supported country and its postal code from Nominatim's payload."""
 
     if not isinstance(payload, dict):
         raise LocationLookupError("Location lookup returned an unexpected response.")
     address = payload.get("address")
-    if not isinstance(address, dict) or address.get("country_code") != "us":
-        raise LocationLookupError("A US delivery ZIP could not be determined.")
+    if not isinstance(address, dict):
+        raise LocationLookupError("A delivery location could not be determined.")
+    country = address.get("country_code")
+    market = marketplace_for_country(country) if isinstance(country, str) else None
+    if market is None:
+        raise LocationLookupError("That country is not in photo search yet.")
     postcode = address.get("postcode")
-    if not isinstance(postcode, str):
-        raise LocationLookupError("A US delivery ZIP could not be determined.")
-    match = _ZIP_PATTERN.search(postcode)
-    if match is None:
-        raise LocationLookupError("A US delivery ZIP could not be determined.")
-    return match.group(1)
+    if not isinstance(postcode, str) or not postcode.strip():
+        raise LocationLookupError("A delivery postcode could not be determined.")
+    return _detected_location(market, postcode)
+
+
+def _detected_location(market: Marketplace, postcode: str) -> DetectedDeliveryLocation:
+    """Build the browser-safe public location response."""
+
+    return DetectedDeliveryLocation(
+        marketplace=market.id,
+        country=market.country_code,
+        country_name=market.name,
+        postal_code=postcode.strip(),
+        currency=market.currency,
+    )

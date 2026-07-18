@@ -11,3 +11,5 @@ web/.env.local
 coverage/
 recordings/
 qa-*.png
+
+.vercel

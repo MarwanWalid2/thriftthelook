@@ -13,7 +13,8 @@ from fastapi.responses import StreamingResponse
 
 from api.config import get_settings
 from api.demo import demo_outfit
-from api.location import LocationLookupError, us_zip_from_coordinates
+from api.location import LocationLookupError, delivery_location_from_coordinates
+from api.marketplaces import PHOTO_MARKETPLACES, marketplace_for_id
 from api.pipeline.run import live_progress
 from api.security import ALLOWED_IMAGE_TYPES, SlidingWindowLimiter, client_ip
 
@@ -41,20 +42,45 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "mode": get_settings().demo_mode}
 
 
-@app.get("/api/location/zip")
-async def location_zip(
+@app.get("/api/location")
+async def delivery_location(
     latitude: Annotated[float, Query(ge=-90, le=90)],
     longitude: Annotated[float, Query(ge=-180, le=180)],
 ) -> dict[str, str]:
-    """Turn a browser-approved location into an editable US delivery ZIP."""
+    """Turn a browser-approved location into an editable delivery context."""
 
     try:
-        return {"zip": await us_zip_from_coordinates(latitude, longitude)}
+        location = await delivery_location_from_coordinates(latitude, longitude)
+        return {
+            "marketplace": location.marketplace,
+            "country": location.country,
+            "countryName": location.country_name,
+            "postalCode": location.postal_code,
+            "currency": location.currency,
+        }
     except LocationLookupError as error:
         raise HTTPException(
             status_code=422,
-            detail="We could not determine a US delivery ZIP from that location.",
+            detail=(
+                "We could not match your location to a supported "
+                "photo-search market."
+            ),
         ) from error
+
+
+@app.get("/api/marketplaces")
+async def supported_marketplaces() -> list[dict[str, str]]:
+    """Expose the small, photo-search-ready market list without credentials."""
+
+    return [
+        {
+            "marketplace": market.id,
+            "country": market.country_code,
+            "countryName": market.name,
+            "currency": market.currency,
+        }
+        for market in PHOTO_MARKETPLACES
+    ]
 
 
 def parse_excluded_ids(value: str) -> frozenset[str]:
@@ -132,6 +158,7 @@ async def create_outfit(
     avoid_colors: Annotated[str, Form()] = "",
     condition_floor: Annotated[str, Form()] = "any",
     delivery_zip: Annotated[str, Form()] = "",
+    delivery_marketplace: Annotated[str, Form()] = "EBAY_US",
 ) -> StreamingResponse:
     """Accept an outfit photo and stream either the judge-safe or live pipeline."""
 
@@ -157,15 +184,32 @@ async def create_outfit(
         )
     excluded_listing_ids = parse_excluded_ids(exclude_ids)
     selected_zip = " ".join(delivery_zip.split())
+    selected_marketplace = marketplace_for_id(delivery_marketplace)
+    if selected_marketplace is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Choose a supported eBay photo-search country.",
+        )
+    if not selected_zip and settings.demo_mode == "offline":
+        selected_zip = "94103"
+    if not _valid_postal_code(selected_zip):
+        raise HTTPException(
+            status_code=422,
+            detail="Add a valid delivery postcode for the selected country.",
+        )
     if settings.demo_mode == "offline":
         return StreamingResponse(
             offline_progress(
-                budget, excluded_listing_ids, selected_zip or "94103"
+                budget, excluded_listing_ids, selected_zip
             ),
             media_type="text/event-stream",
         )
     request_settings = settings.model_copy(
-        update={"ebay_delivery_zip": selected_zip or settings.ebay_delivery_zip}
+        update={
+            "ebay_marketplace": selected_marketplace.id,
+            "ebay_delivery_country": selected_marketplace.country_code,
+            "ebay_delivery_zip": selected_zip,
+        }
     )
     return StreamingResponse(
         live_progress(
@@ -177,4 +221,12 @@ async def create_outfit(
             format_style_profile(size, avoid_colors, condition_floor),
         ),
         media_type="text/event-stream",
+    )
+
+
+def _valid_postal_code(value: str) -> bool:
+    """Keep the marketplace header bounded and free of control characters."""
+
+    return 2 <= len(value) <= 16 and all(
+        character.isalnum() or character in {" ", "-"} for character in value
     )

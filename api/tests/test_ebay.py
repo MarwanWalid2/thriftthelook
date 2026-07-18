@@ -14,11 +14,17 @@ from api.ebay import IDENTITY_URL, EbayClient
 FIXTURE = Path(__file__).parent / "fixtures" / "ebay_search.json"
 
 
-def settings(zip_code: str | None = None) -> Settings:
+def settings(
+    zip_code: str | None = None,
+    marketplace: str = "EBAY_US",
+    country: str = "US",
+) -> Settings:
     return Settings(
         ebay_client_id="test-id",
         ebay_client_secret="test-secret",
         ebay_delivery_zip=zip_code,
+        ebay_marketplace=marketplace,
+        ebay_delivery_country=country,
     )
 
 
@@ -163,6 +169,25 @@ async def test_location_header_is_sent_when_a_delivery_zip_is_known() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         client = EbayClient(settings("94103"), http_client=http)
+        await client.search_by_keywords("vintage jacket")
+
+
+@pytest.mark.asyncio
+async def test_location_header_uses_selected_market_country() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == IDENTITY_URL:
+            return httpx.Response(
+                200, json={"access_token": "token", "expires_in": 7200}
+            )
+        assert request.headers["X-EBAY-C-MARKETPLACE-ID"] == "EBAY_GB"
+        assert (
+            request.headers["X-EBAY-C-ENDUSERCTX"]
+            == "contextualLocation=country=GB,zip=SW1A 1AA"
+        )
+        return httpx.Response(200, json={"itemSummaries": []})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = EbayClient(settings("SW1A 1AA", "EBAY_GB", "GB"), http_client=http)
         await client.search_by_keywords("vintage jacket")
 
 

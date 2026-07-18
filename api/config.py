@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     ebay_client_id: str | None = None
     ebay_client_secret: str | None = None
     ebay_marketplace: str = "EBAY_US"
+    ebay_delivery_country: str = "US"
     ebay_delivery_zip: str | None = None
     use_gpt_boxes: bool = False
     max_upload_bytes: int = 8 * 1024 * 1024

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import DeliveryLocation from "./delivery-location";
+import DeliveryLocation, { DeliveryDetails } from "./delivery-location";
 
 type Selection = {
   slot: string;
@@ -24,6 +24,7 @@ type Selection = {
   reason: string;
   image_url: string | null;
   item_url: string | null;
+  currency: string;
 };
 
 type OutfitResult = {
@@ -52,6 +53,7 @@ type OutfitPayload = {
 type Criteria = {
   photo: File;
   budget: number;
+  delivery: DeliveryDetails;
   zip: string;
   size: string;
   avoidColors: string;
@@ -73,8 +75,12 @@ const apiUrl =
 const sizeOptions = ["No preference", "XXS", "XS", "S", "M", "L", "XL", "2XL", "3XL"];
 const progressSteps = ["Read the look", "Isolate pieces", "Search eBay", "Fit the budget", "Style the receipt"];
 
-function money(value: string | number): string {
-  return `$${Number(value).toFixed(0)}`;
+function money(value: string | number, currency = "USD"): string {
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(value));
 }
 
 function slotLabel(slot: string): string {
@@ -86,7 +92,8 @@ function sameCriteria(left: Criteria, right: Criteria): boolean {
     left.photo.name === right.photo.name &&
     left.photo.size === right.photo.size &&
     left.budget === right.budget &&
-    left.zip === right.zip &&
+    left.delivery.marketplace === right.delivery.marketplace &&
+    left.delivery.postalCode === right.delivery.postalCode &&
     left.size === right.size &&
     left.avoidColors === right.avoidColors &&
     left.conditionFloor === right.conditionFloor
@@ -96,7 +103,13 @@ function sameCriteria(left: Criteria, right: Criteria): boolean {
 export default function OutfitWorkbench() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [budget, setBudget] = useState(120);
-  const [zip, setZip] = useState("");
+  const [delivery, setDelivery] = useState<DeliveryDetails>({
+    marketplace: "EBAY_US",
+    country: "US",
+    countryName: "United States",
+    currency: "USD",
+    postalCode: "",
+  });
   const [size, setSize] = useState("unspecified");
   const [avoidColors, setAvoidColors] = useState("");
   const [conditionFloor, setConditionFloor] = useState("any");
@@ -110,8 +123,8 @@ export default function OutfitWorkbench() {
     if (!photo) {
       return null;
     }
-    return { photo, budget, zip, size, avoidColors, conditionFloor };
-  }, [photo, budget, zip, size, avoidColors, conditionFloor]);
+    return { photo, budget, delivery, zip: delivery.postalCode, size, avoidColors, conditionFloor };
+  }, [photo, budget, delivery, size, avoidColors, conditionFloor]);
 
   const photoPreviewUrl = useMemo(
     () => photo ? URL.createObjectURL(photo) : null,
@@ -159,7 +172,7 @@ export default function OutfitWorkbench() {
   }
 
   async function submitSearch(): Promise<void> {
-    if (!draftCriteria || zip.length !== 5) {
+    if (!draftCriteria || draftCriteria.delivery.postalCode.trim().length < 2) {
       return;
     }
     controllerRef.current?.abort();
@@ -172,7 +185,7 @@ export default function OutfitWorkbench() {
       id,
       criteria,
       status: "searching",
-      feed: [`Searching eBay for shipping to ZIP ${criteria.zip}.`],
+      feed: [`Searching eBay ${criteria.delivery.countryName} for delivery to ${criteria.delivery.postalCode}.`],
     });
     window.requestAnimationFrame(() => {
       document.getElementById("results-heading")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -184,7 +197,8 @@ export default function OutfitWorkbench() {
     form.set("size", criteria.size);
     form.set("avoid_colors", criteria.avoidColors);
     form.set("condition_floor", criteria.conditionFloor);
-    form.set("delivery_zip", criteria.zip);
+    form.set("delivery_zip", criteria.delivery.postalCode);
+    form.set("delivery_marketplace", criteria.delivery.marketplace);
     try {
       const response = await fetch(`${apiUrl}/api/outfit`, {
         method: "POST",
@@ -236,7 +250,7 @@ export default function OutfitWorkbench() {
     }
   }
 
-  const canSubmit = Boolean(draftCriteria && zip.length === 5 && run?.status !== "searching");
+  const canSubmit = Boolean(draftCriteria && delivery.postalCode.trim().length >= 2 && run?.status !== "searching");
   const submitLabel = run && draftChanged ? "Update my look" : "Find my look";
 
   return (
@@ -281,11 +295,11 @@ export default function OutfitWorkbench() {
           </label>
 
           <div className="space-y-4">
-            <DeliveryLocation apiUrl={apiUrl} deliveryZip={zip} onDeliveryZipChange={setZip} />
+            <DeliveryLocation apiUrl={apiUrl} delivery={delivery} onDeliveryChange={setDelivery} />
             <div>
-              <div className="flex items-center justify-between"><label className="text-sm font-extrabold text-ink" htmlFor="budget">Total budget</label><output className="rounded-full bg-kraft px-3 py-1 text-lg font-extrabold text-ink">{money(budget)}</output></div>
+              <div className="flex items-center justify-between"><label className="text-sm font-extrabold text-ink" htmlFor="budget">Total budget</label><output className="rounded-full bg-kraft px-3 py-1 text-lg font-extrabold text-ink">{money(budget, delivery.currency)}</output></div>
               <input id="budget" className="mt-3 w-full accent-rose" type="range" min="50" max="150" step="5" value={budget} onChange={(event) => setBudget(Number(event.target.value))} />
-              <div className="mt-1 flex justify-between text-xs font-bold text-cocoa"><span>$50</span><span>$150</span></div>
+              <div className="mt-1 flex justify-between text-xs font-bold text-cocoa"><span>{money(50, delivery.currency)}</span><span>{money(150, delivery.currency)}</span></div>
             </div>
             <label className="block text-sm font-extrabold text-ink">Your size
               <select className="mt-1 min-h-11 w-full rounded-xl border border-kraft bg-white px-3 text-sm font-bold text-ink" value={size} onChange={(event) => setSize(event.target.value)}>{sizeOptions.map((option) => <option key={option} value={option === "No preference" ? "unspecified" : option}>{option}</option>)}</select>
@@ -299,7 +313,7 @@ export default function OutfitWorkbench() {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-kraft/60 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-cocoa">{zip.length === 5 ? budget < 100 ? `At ${money(budget)}, eBay shipping may leave room for only one piece. Try $100+ for a 2–3 piece look.` : `Searches eBay for shipping to ZIP ${zip}; every displayed total includes shipping.` : "Add a five-digit US ZIP for eBay shipping."}</p>
+          <p className="text-sm font-semibold text-cocoa">{delivery.postalCode.trim().length >= 2 ? budget < 100 ? `At ${money(budget, delivery.currency)}, eBay shipping may leave room for only one piece. Try a higher budget for a 2–3 piece look.` : `Searches eBay ${delivery.countryName} for delivery to ${delivery.postalCode}; every displayed total includes shipping.` : `Add your ${delivery.countryName} delivery postcode for eBay shipping.`}</p>
           {run?.status === "searching" ? <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-rose px-5 text-base font-extrabold text-rose" type="button" onClick={cancelSearch}><X size={18} /> Cancel search</button> : <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-rose px-6 text-base font-extrabold text-ink hover:bg-rose-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled={!canSubmit} onClick={() => void submitSearch()}><Search size={18} /> {submitLabel}</button>}
         </div>
       </section>
@@ -314,7 +328,7 @@ export default function OutfitWorkbench() {
 }
 
 function SearchProgress({ run }: { run: SearchRun }) {
-  return <div className="rounded-card border border-kraft bg-paper p-6"><p className="font-hand text-2xl font-semibold text-rose-deep">finding your look</p><p className="mt-1 font-extrabold text-ink">Searching eBay for shipping to ZIP {run.criteria.zip}</p><ol className="mt-5 grid gap-3 sm:grid-cols-5">{progressSteps.map((step, index) => <li className={`rounded-xl p-3 text-sm font-extrabold ${index < run.feed.length ? "bg-sage/40 text-ink" : "bg-paper text-cocoa"}`} key={step}>{index + 1}. {step}</li>)}</ol><p className="mt-5 text-sm font-semibold text-cocoa">{run.feed.at(-1)}</p></div>;
+  return <div className="rounded-card border border-kraft bg-paper p-6"><p className="font-hand text-2xl font-semibold text-rose-deep">finding your look</p><p className="mt-1 font-extrabold text-ink">Searching eBay {run.criteria.delivery.countryName} for delivery to {run.criteria.delivery.postalCode}</p><ol className="mt-5 grid gap-3 sm:grid-cols-5">{progressSteps.map((step, index) => <li className={`rounded-xl p-3 text-sm font-extrabold ${index < run.feed.length ? "bg-sage/40 text-ink" : "bg-paper text-cocoa"}`} key={step}>{index + 1}. {step}</li>)}</ol><p className="mt-5 text-sm font-semibold text-cocoa">{run.feed.at(-1)}</p></div>;
 }
 
 function Results({ run }: { run: SearchRun }) {
@@ -341,10 +355,10 @@ function Results({ run }: { run: SearchRun }) {
         <p className="font-hand text-2xl font-semibold text-butter">your rebuilt look</p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-extrabold">{activeLook.selections.length} pieces · {money(activeLook.total)} delivered</h2>
-            <p className="mt-1 font-semibold text-paper/80">{state} · eBay shipping to ZIP {run.criteria.zip}</p>
+            <h2 className="text-2xl font-extrabold">{activeLook.selections.length} pieces · {money(activeLook.total, run.criteria.delivery.currency)} delivered</h2>
+            <p className="mt-1 font-semibold text-paper/80">{state} · eBay {run.criteria.delivery.countryName} delivery to {run.criteria.delivery.postalCode}</p>
           </div>
-          <span className="rounded-full bg-sage px-3 py-2 text-sm font-extrabold text-ink">Budget {money(run.criteria.budget)}</span>
+          <span className="rounded-full bg-sage px-3 py-2 text-sm font-extrabold text-ink">Budget {money(run.criteria.budget, run.criteria.delivery.currency)}</span>
         </div>
       </div>
 
@@ -382,8 +396,8 @@ function Results({ run }: { run: SearchRun }) {
                 <div><p className="text-xs font-extrabold uppercase tracking-wide text-cocoa">{slotLabel(selection.slot)}</p><h3 className="mt-1 text-sm font-extrabold text-ink">{selection.title}</h3></div>
                 <span className="rounded-full bg-sage/40 px-2 py-1 text-xs font-extrabold text-ink">{selection.match_score}%</span>
               </div>
-              <p className="mt-3 rounded-lg bg-kraft px-3 py-2 text-sm font-extrabold text-ink">{money(selection.total ?? "0")} delivered</p>
-              <p className="mt-1 text-xs font-semibold text-cocoa">{money(selection.price)} + {money(selection.shipping ?? "0")} shipping</p>
+              <p className="mt-3 rounded-lg bg-kraft px-3 py-2 text-sm font-extrabold text-ink">{money(selection.total ?? "0", selection.currency)} delivered</p>
+              <p className="mt-1 text-xs font-semibold text-cocoa">{money(selection.price, selection.currency)} + {money(selection.shipping ?? "0", selection.currency)} shipping</p>
               <p className="mt-3 font-hand text-base font-semibold leading-5 text-rose-deep">{selection.reason}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {selection.item_url && <a className="inline-flex min-h-11 items-center gap-1 rounded-full border border-rose px-3 text-xs font-extrabold text-rose hover:bg-blush" href={selection.item_url} target="_blank" rel="noreferrer">View on eBay <ExternalLink size={14} /></a>}

@@ -1,18 +1,31 @@
-"""Pure payload coverage for consented ZIP lookup."""
+"""Coverage for consented marketplace and postcode lookup."""
 
 import pytest
 
-from api.location import LocationLookupError, _zip_from_nominatim_payload
+from api.location import LocationLookupError, _delivery_location_from_nominatim_payload
 
 
-def test_extracts_primary_zip_from_us_reverse_geocode() -> None:
+def test_extracts_us_marketplace_and_zip_from_reverse_geocode() -> None:
     payload = {"address": {"country_code": "us", "postcode": "94103-1234"}}
 
-    assert _zip_from_nominatim_payload(payload) == "94103"
+    location = _delivery_location_from_nominatim_payload(payload)
+
+    assert location.marketplace == "EBAY_US"
+    assert location.postal_code == "94103-1234"
 
 
-def test_rejects_non_us_reverse_geocode() -> None:
+def test_extracts_uk_marketplace_and_postcode_from_reverse_geocode() -> None:
+    payload = {"address": {"country_code": "gb", "postcode": "SW1A 1AA"}}
+
+    location = _delivery_location_from_nominatim_payload(payload)
+
+    assert location.marketplace == "EBAY_GB"
+    assert location.country == "GB"
+    assert location.currency == "GBP"
+
+
+def test_rejects_country_without_photo_search() -> None:
     payload = {"address": {"country_code": "ca", "postcode": "M5V 3A8"}}
 
     with pytest.raises(LocationLookupError):
-        _zip_from_nominatim_payload(payload)
+        _delivery_location_from_nominatim_payload(payload)

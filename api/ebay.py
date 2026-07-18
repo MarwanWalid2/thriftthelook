@@ -72,7 +72,7 @@ class EbayClient:
         limit: int = 24,
         fallback_keywords: str | None = None,
     ) -> list[Listing]:
-        """Search EBAY_US with a base64 crop, falling back to keywords when supplied."""
+        """Search the selected eBay market with a crop, falling back to keywords."""
 
         if not crop:
             raise ValueError("A non-empty image crop is required.")
@@ -139,7 +139,9 @@ class EbayClient:
         }
         if self.settings.ebay_delivery_zip:
             headers["X-EBAY-C-ENDUSERCTX"] = (
-                f"contextualLocation=country=US,zip={self.settings.ebay_delivery_zip}"
+                "contextualLocation="
+                f"country={self.settings.ebay_delivery_country},"
+                f"zip={self.settings.ebay_delivery_zip}"
             )
         response = await self._send_with_retries(method, url, headers=headers, **kwargs)
         try:

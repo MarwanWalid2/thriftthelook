@@ -12,13 +12,13 @@ import OutfitWorkbench from "./outfit-workbench";
 
 const steps = [
   { icon: Search, title: "Read the fit", detail: "We break your photo into buyable pieces." },
-  { icon: ShoppingBag, title: "Search eBay", detail: "We use your ZIP for eBay shipping context." },
+  { icon: ShoppingBag, title: "Search eBay", detail: "We match your delivery country and postcode to eBay shipping." },
   { icon: Scissors, title: "Fit the budget", detail: "A deterministic solver keeps the basket honest." },
 ];
 
 const decisionPoints = [
   { icon: ImageIcon, label: "Photo" },
-  { icon: MapPin, label: "ZIP" },
+  { icon: MapPin, label: "Delivery" },
   { icon: WalletCards, label: "Budget" },
 ];
 
@@ -55,7 +55,7 @@ export default function HomePage() {
         <aside className="corkboard paper-lift flex min-h-[336px] flex-col justify-between rounded-[24px] border-8 border-[#F3A257] p-7 text-paper sm:p-8" aria-label="How the search is scoped">
           <div>
             <p className="font-hand text-3xl font-semibold text-butter">one clear decision</p>
-            <p className="mt-5 max-w-sm text-2xl font-extrabold leading-tight">Your photo + your ZIP + your budget.</p>
+            <p className="mt-5 max-w-sm text-2xl font-extrabold leading-tight">Your photo + delivery location + budget.</p>
             <p className="mt-4 max-w-sm text-sm font-semibold leading-6 text-paper/85">No mystery searches. We only look when you press the button.</p>
           </div>
           <div className="grid grid-cols-3 gap-2 border-t border-paper/30 pt-5">

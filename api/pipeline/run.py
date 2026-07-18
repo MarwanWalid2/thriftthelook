@@ -130,6 +130,8 @@ async def live_progress(
                 "mode": "live",
                 "notice": "Live eBay inventory; pricing estimated at request time.",
                 "zip": settings.ebay_delivery_zip,
+                "marketplace": settings.ebay_marketplace,
+                "country": settings.ebay_delivery_country,
                 "budget": str(budget),
                 "result": result,
                 "narration": narration.model_dump(),

@@ -14,6 +14,20 @@ def test_health_reports_offline_mode() -> None:
     assert response.json() == {"status": "ok", "mode": "offline"}
 
 
+def test_marketplaces_lists_the_photo_search_countries() -> None:
+    client = TestClient(app)
+
+    response = client.get("/api/marketplaces")
+
+    assert response.status_code == 200
+    assert [market["marketplace"] for market in response.json()] == [
+        "EBAY_US",
+        "EBAY_GB",
+        "EBAY_DE",
+        "EBAY_AU",
+    ]
+
+
 def test_outfit_stream_includes_complete_demo_payload() -> None:
     client = TestClient(app)
 
@@ -91,3 +105,15 @@ def test_style_profile_normalizes_user_preferences() -> None:
     assert profile == (
         "Size: M; colors to avoid: neon red; minimum condition: very good."
     )
+
+
+def test_outfit_rejects_unsupported_marketplace() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/outfit",
+        data={"delivery_zip": "M5V 3A8", "delivery_marketplace": "EBAY_CA"},
+        files={"photo": ("outfit.jpg", b"synthetic-image", "image/jpeg")},
+    )
+
+    assert response.status_code == 422

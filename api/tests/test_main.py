@@ -39,6 +39,15 @@ def test_outfit_stream_includes_complete_demo_payload() -> None:
     assert "Synthetic demo inventory" in response.text
 
 
+def test_outfit_stream_disables_proxy_buffering() -> None:
+    client = TestClient(app)
+
+    response = client.get("/api/outfit?budget=75")
+
+    assert response.headers["cache-control"] == "no-cache, no-transform"
+    assert response.headers["x-accel-buffering"] == "no"
+
+
 def test_uploaded_photo_replays_offline_demo_without_provider_keys() -> None:
     client = TestClient(app)
 

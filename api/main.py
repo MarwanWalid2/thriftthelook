@@ -34,6 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SSE_HEADERS = {
+    "Cache-Control": "no-cache, no-transform",
+    "X-Accel-Buffering": "no",
+}
+
 
 @app.get("/api/health")
 async def health() -> dict[str, str]:
@@ -145,6 +150,7 @@ async def outfit_events(
             budget, parse_excluded_ids(exclude_ids), delivery_zip
         ),
         media_type="text/event-stream",
+        headers=SSE_HEADERS,
     )
 
 
@@ -203,6 +209,7 @@ async def create_outfit(
                 budget, excluded_listing_ids, selected_zip
             ),
             media_type="text/event-stream",
+            headers=SSE_HEADERS,
         )
     request_settings = settings.model_copy(
         update={
@@ -221,6 +228,7 @@ async def create_outfit(
             format_style_profile(size, avoid_colors, condition_floor),
         ),
         media_type="text/event-stream",
+        headers=SSE_HEADERS,
     )
 
 

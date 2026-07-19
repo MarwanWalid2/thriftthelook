@@ -12,6 +12,7 @@ import {
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import DeliveryLocation, { DeliveryDetails } from "./delivery-location";
+import { preparePhotoForUpload } from "./image-upload";
 
 type Selection = {
   slot: string;
@@ -115,6 +116,9 @@ export default function OutfitWorkbench() {
   const [conditionFloor, setConditionFloor] = useState("any");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [run, setRun] = useState<SearchRun | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
@@ -146,23 +150,39 @@ export default function OutfitWorkbench() {
     [photoPreviewUrl],
   );
 
-  function stagePhoto(nextPhoto: File): void {
+  async function stagePhoto(nextPhoto: File): Promise<void> {
     controllerRef.current?.abort();
-    setPhoto(nextPhoto);
-    setRun(null);
+    setPreparingPhoto(true);
+    setUploadError(null);
+    setUploadMessage(null);
+    try {
+      const prepared = await preparePhotoForUpload(nextPhoto);
+      setPhoto(prepared.photo);
+      setRun(null);
+      if (prepared.optimized) {
+        setUploadMessage("Photo optimized for a reliable live search.");
+      }
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "This image could not be prepared.",
+      );
+    } finally {
+      setPreparingPhoto(false);
+    }
   }
 
   function handleFile(event: ChangeEvent<HTMLInputElement>): void {
     if (event.target.files?.[0]) {
-      stagePhoto(event.target.files[0]);
+      void stagePhoto(event.target.files[0]);
     }
+    event.target.value = "";
   }
 
   function handleDrop(event: DragEvent<HTMLElement>): void {
     event.preventDefault();
     setDragActive(false);
     if (event.dataTransfer.files[0]) {
-      stagePhoto(event.dataTransfer.files[0]);
+      void stagePhoto(event.dataTransfer.files[0]);
     }
   }
 
@@ -206,7 +226,7 @@ export default function OutfitWorkbench() {
         signal: controller.signal,
       });
       if (!response.ok || !response.body) {
-        throw new Error("The outfit service did not return a stream.");
+        throw new Error(await requestFailureMessage(response));
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -250,7 +270,12 @@ export default function OutfitWorkbench() {
     }
   }
 
-  const canSubmit = Boolean(draftCriteria && delivery.postalCode.trim().length >= 2 && run?.status !== "searching");
+  const canSubmit = Boolean(
+    draftCriteria
+      && delivery.postalCode.trim().length >= 2
+      && !preparingPhoto
+      && run?.status !== "searching",
+  );
   const submitLabel = run && draftChanged ? "Update my look" : "Find my look";
 
   return (
@@ -266,13 +291,14 @@ export default function OutfitWorkbench() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <label
+          <div className="space-y-2">
+            <label
             className={`relative grid min-h-56 cursor-pointer place-items-center rounded-card border-2 border-dashed p-5 text-center transition ${dragActive ? "border-rose bg-blush/50" : "border-kraft bg-blush/20 hover:bg-blush/35"}`}
             onDragEnter={() => setDragActive(true)}
             onDragLeave={() => setDragActive(false)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
-          >
+            >
             {photo && photoPreviewUrl ? (
               <div className="relative w-full rounded-card bg-white p-3 text-left shadow-paper">
                 <span className="washi-tape absolute -top-3 left-7 z-10 h-7 w-24 -rotate-3 bg-butter/90 shadow-tape" aria-hidden="true" />
@@ -289,10 +315,12 @@ export default function OutfitWorkbench() {
                 <p className="mt-2 text-xs font-extrabold text-rose">Tap to choose another photo</p>
               </div>
             ) : (
-              <div><span className="mx-auto grid size-14 place-items-center rounded-full bg-blush text-rose-deep"><ImageUp size={26} /></span><p className="mt-3 text-lg font-extrabold text-ink">Drop an outfit photo</p><p className="mt-1 text-sm font-semibold text-cocoa">JPG, PNG, paste, or drag a screenshot.</p></div>
+              <div><span className="mx-auto grid size-14 place-items-center rounded-full bg-blush text-rose-deep"><ImageUp size={26} /></span><p className="mt-3 text-lg font-extrabold text-ink">{preparingPhoto ? "Preparing your photo" : "Drop an outfit photo"}</p><p className="mt-1 text-sm font-semibold text-cocoa">JPG, PNG, paste, or drag a screenshot. Up to 25 MB.</p></div>
             )}
-            <input className="sr-only" type="file" accept="image/*" onChange={handleFile} />
-          </label>
+              <input className="sr-only" type="file" accept="image/*" onChange={handleFile} />
+            </label>
+            {(uploadMessage || uploadError) && <p className={`text-sm font-bold ${uploadError ? "text-rose-deep" : "text-cocoa"}`} role="status">{uploadError ?? uploadMessage}</p>}
+          </div>
 
           <div className="space-y-4">
             <DeliveryLocation apiUrl={apiUrl} delivery={delivery} onDeliveryChange={setDelivery} />
@@ -325,6 +353,21 @@ export default function OutfitWorkbench() {
       </section>
     </section>
   );
+}
+
+async function requestFailureMessage(response: Response): Promise<string> {
+  if (response.status === 413) {
+    return "That photo is too large to send. Choose an image up to 25 MB and we will optimize it first.";
+  }
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    if (response.status === 422 && payload.detail) {
+      return payload.detail;
+    }
+  } catch {
+    // The hosting layer can return an HTML error page for rejected uploads.
+  }
+  return "The outfit service did not return a stream.";
 }
 
 function SearchProgress({ run }: { run: SearchRun }) {

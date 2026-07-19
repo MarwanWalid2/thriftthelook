@@ -76,6 +76,20 @@ FastAPI SSE -> Next.js outfit board
 
 The solver is deterministic Python: it uses known delivered totals, never an AI decision, and returns complete, partial, or over-budget states truthfully.
 
+## OpenAI and Codex
+
+The vision stages are implemented through the OpenAI Responses API with strict
+Pydantic schemas in [`api/llm.py`](api/llm.py). The configured decomposition,
+visual reranking, and receipt-narration roles support GPT-5.6 through deployment
+environment variables; model identifiers are configuration rather than
+hard-coded application defaults. If a primary provider request cannot proceed,
+the same structured contract can use a configured compatible fallback. The
+delivered-price solver always remains deterministic Python.
+
+Codex was used in this workspace to scaffold the FastAPI and Next.js app,
+implement the eBay OAuth/search client and tests, trace and fix serverless SSE
+streaming, build the upload reliability flow, and refine the outfit-board UX.
+
 ## Quality checks
 
 ```text

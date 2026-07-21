@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Nunito } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "./globals.css";
 
@@ -23,7 +24,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${nunito.variable} ${caveat.variable}`}>{children}</body>
+      <body className={`${nunito.variable} ${caveat.variable}`}>
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
